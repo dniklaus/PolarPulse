@@ -15,8 +15,8 @@ const bool PolarPulse::IS_NEG_LOGIC = true;
 const int  PolarPulse::PLS_NC       = -1;
 const int  PolarPulse::IND_NC       = -1;
 
-const int  PolarPulse::s_defaultPulsePollTimeMillis = 5;
-const int  PolarPulse::s_defaultReportIntervalMillis = 15000;
+const unsigned int PolarPulse::s_defaultPulsePollTimeMillis  = 5;
+const unsigned int PolarPulse::s_defaultReportIntervalMillis = 15000;
 
 //-----------------------------------------------------------------------------
 
@@ -24,16 +24,29 @@ class PollingTimerAdapter : public TimerAdapter
 {
 private:
   PolarPulse* m_pulseSesor;
-  bool m_lastWasPulseHigh;
+  bool m_lastWasPulseActive;
 public:
   PollingTimerAdapter(PolarPulse* pulseSesor)
   : m_pulseSesor(pulseSesor)
-  , m_lastWasPulseHigh(false)
+  , m_lastWasPulseActive(false)
   { }
 
   void timeExpired()
   {
+    if (0 != m_pulseSesor)
+    {
+      bool currentIsPulseActive = m_pulseSesor->isPulseActive();
 
+      if (m_lastWasPulseActive != currentIsPulseActive)
+      {
+        m_lastWasPulseActive = currentIsPulseActive;
+        m_pulseSesor->setIndicator(currentIsPulseActive);
+        if (currentIsPulseActive)
+        {
+          m_pulseSesor->countPulse();
+        }
+      }
+    }
   }
 };
 
@@ -50,7 +63,10 @@ public:
 
   void timeExpired()
   {
-
+    if (0 != m_pulseSesor)
+    {
+      m_pulseSesor->reportInterval();
+    }
   }
 };
 
@@ -61,7 +77,8 @@ PolarPulse::PolarPulse(int pulsePin, int indicatorPin, bool isPulsePinNegativeLo
 , m_reportTimer(new Timer(new ReportTimerAdapter(this), Timer::IS_RECURRING, s_defaultReportIntervalMillis))
 , m_adapter(adapter)
 , m_isPulsePinNegativeLogic(isPulsePinNegativeLogic)
-, m_isActive(false)
+, m_count(false)
+, m_heartBeatRate(0)
 , m_pulsePin(pulsePin)
 , m_indicatorPin(indicatorPin)
 {
@@ -73,7 +90,7 @@ PolarPulse::PolarPulse(int pulsePin, int indicatorPin, bool isPulsePinNegativeLo
   if (0 <= m_indicatorPin)
   {
     pinMode(m_indicatorPin, OUTPUT);
-    digitalWrite(m_indicatorPin, m_isActive);
+    digitalWrite(m_indicatorPin, m_count);
   }
 }
 
@@ -111,4 +128,28 @@ bool PolarPulse::isPulseActive()
     active = (m_isPulsePinNegativeLogic ? !active : active);
   }
   return active;
+}
+
+void PolarPulse::countPulse()
+{
+  m_count++;
+}
+
+void PolarPulse::reportInterval()
+{
+  const unsigned int c_extrapolationFactor = 60000 / s_defaultReportIntervalMillis;
+  m_heartBeatRate = m_count * c_extrapolationFactor;
+  m_count = 0;
+  if (0 != m_adapter)
+  {
+    m_adapter->notifyHeartBeatRate(m_heartBeatRate);
+  }
+}
+
+void PolarPulse::setIndicator(bool isActive)
+{
+  if (0 <= m_indicatorPin)
+  {
+    digitalWrite(m_indicatorPin, !isActive);
+  }
 }

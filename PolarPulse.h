@@ -14,6 +14,13 @@ class Timer;
 
 class PolarPulseAdapter
 {
+public:
+  /**
+   * Notify a heart beat rate. Reported an 15 seconds.
+   * @param  heartBeatRate heart beat rate [1/min].
+   */
+  virtual void notifyHeartBeatRate(unsigned int heartBeatRate) = 0;
+
 protected:
   PolarPulseAdapter() { }
   virtual ~PolarPulseAdapter() { }
@@ -65,6 +72,22 @@ public:
   bool isPulseActive();
 
   /**
+   * Count one Pulse.
+   */
+  void countPulse();
+
+  /**
+   * Report Interval is over, extrapolate the heart beat rate per minute.
+   */
+  void reportInterval();
+
+  /**
+   * Set indicator pin.
+   * @param isActive Indicator set active.
+   */
+  void setIndicator(bool isActive);
+
+  /**
    * Constant for isButtonNegativeLogic parameter of the constructor (@see PolarPulse()), to create a pulse sensor object triggering on the rising egde.
    */
   static const bool IS_POS_LOGIC;
@@ -89,11 +112,12 @@ private:
   Timer* m_reportTimer;
   PolarPulseAdapter* m_adapter;
   bool m_isPulsePinNegativeLogic;
-  bool m_isActive;
+  unsigned int m_count;
+  unsigned int m_heartBeatRate;
   int m_pulsePin;
   int m_indicatorPin;
-  static const int s_defaultPulsePollTimeMillis;
-  static const int s_defaultReportIntervalMillis;
+  static const unsigned int s_defaultPulsePollTimeMillis;
+  static const unsigned int s_defaultReportIntervalMillis;
 
 private:  // forbidden functions
   PolarPulse(const PolarPulse& src);              // copy constructor
