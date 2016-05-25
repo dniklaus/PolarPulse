@@ -10,6 +10,8 @@
 
 class Timer;
 
+class DbgCli_Command;
+
 //-----------------------------------------------------------------------------
 
 class PolarPulseAdapter
@@ -111,6 +113,7 @@ private:
   Timer* m_pollingTimer;
   Timer* m_reportTimer;
   PolarPulseAdapter* m_adapter;
+  DbgCli_Command* m_dbgPulseSimCmd;
   bool m_isPulsePinNegativeLogic;
   unsigned int m_count;
   unsigned int m_heartBeatRate;
