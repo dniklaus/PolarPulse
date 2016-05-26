@@ -17,7 +17,7 @@ const int  PolarPulse::PLS_NC       = -1;
 const int  PolarPulse::IND_NC       = -1;
 
 const unsigned int PolarPulse::s_defaultPulsePollTimeMillis  = 5;
-const unsigned int PolarPulse::s_defaultReportIntervalMillis = 5000;
+const unsigned int PolarPulse::s_defaultReportIntervalMillis = 20000;
 
 //-----------------------------------------------------------------------------
 
