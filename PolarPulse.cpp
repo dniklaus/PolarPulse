@@ -9,42 +9,57 @@
 #include <Arduino.h>
 
 #include "PolarPulse.h"
+#include <DbgCliTopic.h>
 #include <DbgCliCommandPulseSim.h>
+#include <DbgCliCommandPulseGen.h>
 
 const bool PolarPulse::IS_POS_LOGIC = false;
 const bool PolarPulse::IS_NEG_LOGIC = true;
 const int  PolarPulse::PLS_NC       = -1;
 const int  PolarPulse::IND_NC       = -1;
 
-const unsigned int PolarPulse::s_defaultPulsePollTimeMillis  = 5;
-const unsigned int PolarPulse::s_defaultReportIntervalMillis = 20000;
+const unsigned int PolarPulse::s_defaultPulsePollTimeMillis          = 5;
+const unsigned int PolarPulse::s_defaultExternalPulsePollTimeMillis  = 2500;
+const unsigned int PolarPulse::s_defaultReportIntervalMillis         = 5000;
+const unsigned int PolarPulse::s_defaultReportOveralBufferTimeMillis = 20000;
+const unsigned int PolarPulse::s_oneMinuteMillis                     = 60000;
 
 //-----------------------------------------------------------------------------
 
 class PollingTimerAdapter : public TimerAdapter
 {
 private:
-  PolarPulse* m_pulseSesor;
+  PolarPulse* m_pulseSensor;
   bool m_lastWasPulseActive;
 public:
-  PollingTimerAdapter(PolarPulse* pulseSesor)
-  : m_pulseSesor(pulseSesor)
+  PollingTimerAdapter(PolarPulse* pulseSensor)
+  : m_pulseSensor(pulseSensor)
   , m_lastWasPulseActive(false)
   { }
 
   void timeExpired()
   {
-    if (0 != m_pulseSesor)
+    if (0 != m_pulseSensor)
     {
-      bool currentIsPulseActive = m_pulseSesor->isPulseActive();
-
-      if (m_lastWasPulseActive != currentIsPulseActive)
+      if (m_pulseSensor->isPulseDetectedExternally())
       {
-        m_lastWasPulseActive = currentIsPulseActive;
-        m_pulseSesor->setIndicator(currentIsPulseActive);
-        if (currentIsPulseActive)
+        unsigned int count = m_pulseSensor->adapter()->getCount();
+        m_pulseSensor->countPulse(count);
+//        Serial.print("PollingTimerAdapter, isPulseDetectedExternally, getCount(): ");
+//        Serial.println(count);
+      }
+      else
+      {
+        bool currentIsPulseActive = m_pulseSensor->isPulseActive();
+
+        if (m_lastWasPulseActive != currentIsPulseActive)
         {
-          m_pulseSesor->countPulse();
+          m_lastWasPulseActive = currentIsPulseActive;
+          m_pulseSensor->setIndicator(currentIsPulseActive);
+          if (currentIsPulseActive && (0 != !m_pulseSensor->dbgPulseGenCmd()) && !m_pulseSensor->dbgPulseGenCmd()->isRunning())
+          {
+            m_pulseSensor->countPulse();
+          }
         }
       }
     }
@@ -56,17 +71,17 @@ public:
 class ReportTimerAdapter : public TimerAdapter
 {
 private:
-  PolarPulse* m_pulseSesor;
+  PolarPulse* m_pulseSensor;
 public:
-  ReportTimerAdapter(PolarPulse* pulseSesor)
-  : m_pulseSesor(pulseSesor)
+  ReportTimerAdapter(PolarPulse* pulseSensor)
+  : m_pulseSensor(pulseSensor)
   { }
 
   void timeExpired()
   {
-    if (0 != m_pulseSesor)
+    if (0 != m_pulseSensor)
     {
-      m_pulseSesor->reportInterval();
+      m_pulseSensor->reportInterval();
     }
   }
 };
@@ -74,30 +89,56 @@ public:
 //-----------------------------------------------------------------------------
 
 PolarPulse::PolarPulse(int pulsePin, int indicatorPin, bool isPulsePinNegativeLogic, PolarPulseAdapter* adapter)
-: m_pollingTimer(new Timer(new PollingTimerAdapter(this), Timer::IS_RECURRING, s_defaultPulsePollTimeMillis))
+: m_pollingTimer(0)
 , m_reportTimer(new Timer(new ReportTimerAdapter(this), Timer::IS_RECURRING, s_defaultReportIntervalMillis))
 , m_adapter(adapter)
+, m_dbgTopic(new DbgCli_Topic(DbgCli_Node::RootNode(), "pulse", "Pulse sensor component"))
 , m_dbgPulseSimCmd(new DbgCli_Command_PulseSim(this))
+//, m_dbgPulseGenCmd(new DbgCli_Command_PulseGen(this))
+, m_dbgPulseGenCmd(0)
 , m_isPulsePinNegativeLogic(isPulsePinNegativeLogic)
 , m_count(false)
 , m_heartBeatRate(0)
 , m_pulsePin(pulsePin)
 , m_indicatorPin(indicatorPin)
+, m_cMaxReportStores(s_defaultReportOveralBufferTimeMillis / s_defaultReportIntervalMillis)
+, m_reportPeriodCount(0)
 {
-  if (0 <= m_pulsePin)
+  if (isPulseDetectedExternally())
   {
+    // pulse events detected externally
+    m_pollingTimer = new Timer(new PollingTimerAdapter(this), Timer::IS_RECURRING, s_defaultExternalPulsePollTimeMillis);
+  }
+  else
+  {
+    // polling mode
     pinMode(m_pulsePin, INPUT);
     digitalWrite(m_pulsePin, m_isPulsePinNegativeLogic ? HIGH : LOW); // pull
+    m_pollingTimer = new Timer(new PollingTimerAdapter(this), Timer::IS_RECURRING, s_defaultPulsePollTimeMillis);
   }
-  if (0 <= m_indicatorPin)
+
+  if (IND_NC < m_indicatorPin)
   {
     pinMode(m_indicatorPin, OUTPUT);
     digitalWrite(m_indicatorPin, m_count);
+  }
+  m_heartBeatRate = new unsigned int[m_cMaxReportStores];
+  for (unsigned char i = 0; i < m_cMaxReportStores; i++)
+  {
+    m_heartBeatRate[i] = 0;
   }
 }
 
 PolarPulse::~PolarPulse()
 {
+  if (IND_NC < m_indicatorPin)
+  {
+    pinMode(m_indicatorPin, INPUT);
+  }
+
+  delete [] m_heartBeatRate;
+  m_heartBeatRate = 0;
+
   delete m_pollingTimer->adapter();
   m_pollingTimer->attachAdapter(0);
 
@@ -121,6 +162,16 @@ void PolarPulse::attachAdapter(PolarPulseAdapter* adapter)
   m_adapter = adapter;
 }
 
+DbgCli_Topic* PolarPulse::dbgTopic()
+{
+  return m_dbgTopic;
+}
+
+DbgCli_Command_PulseGen* PolarPulse::dbgPulseGenCmd()
+{
+  return m_dbgPulseGenCmd;
+}
+
 bool PolarPulse::isPulseActive()
 {
   bool active = false;
@@ -132,19 +183,45 @@ bool PolarPulse::isPulseActive()
   return active;
 }
 
-void PolarPulse::countPulse()
+bool PolarPulse::isPulseDetectedExternally()
 {
-  m_count++;
+  bool isExternally = (PLS_NC >= m_pulsePin);
+  return isExternally;
+}
+
+void PolarPulse::countPulse(unsigned int count)
+{
+  if (0 == count)
+  {
+    m_count++;
+  }
+  else
+  {
+    m_count += count;
+  }
 }
 
 void PolarPulse::reportInterval()
 {
-  const unsigned int c_extrapolationFactor = 60000 / s_defaultReportIntervalMillis;
-  m_heartBeatRate = m_count * c_extrapolationFactor;
+  m_reportPeriodCount++;
+//  Serial.print("reportInterval(), after incr, m_reportPeriodCount=");
+//  Serial.println(m_reportPeriodCount);
+  if (0 == (m_reportPeriodCount % m_cMaxReportStores))
+  {
+    m_reportPeriodCount = 0;
+//    Serial.print("reportInterval(), after reset, m_reportPeriodCount=");
+//    Serial.println(m_reportPeriodCount);
+  }
+  const unsigned int c_extrapolationFactor = s_oneMinuteMillis / s_defaultReportIntervalMillis;
+  m_heartBeatRate[m_reportPeriodCount] = m_count * c_extrapolationFactor;
   m_count = 0;
   if (0 != m_adapter)
   {
-    m_adapter->notifyHeartBeatRate(m_heartBeatRate);
+    m_adapter->notifyHeartBeatRate(m_heartBeatRate[m_reportPeriodCount]);
+    if (0 == m_reportPeriodCount)
+    {
+      m_adapter->notifyHeartBeatRate(m_heartBeatRate, m_cMaxReportStores);
+    }
   }
 }
 

@@ -9,8 +9,9 @@
 #define COMP_POLARPULSE_POLARPULSE_H_
 
 class Timer;
-
-class DbgCli_Command;
+class DbgCli_Topic;
+class DbgCli_Command_PulseSim;
+class DbgCli_Command_PulseGen;
 
 //-----------------------------------------------------------------------------
 
@@ -18,8 +19,22 @@ class PolarPulseAdapter
 {
 public:
   /**
-   * Notify a heart beat rate. Reported an 15 seconds.
-   * @param  heartBeatRate heart beat rate [1/min].
+   * Get Heart Beat Pulse Count from an external counter since last call of this method.
+   * Can be implemented optionally, useful i.e. when pulse pin is triggering an ISR.
+   * @return count Heart Beat Pulse Count since last call.
+   */
+  virtual unsigned int getCount() { return 0; }
+
+  /**
+   * Notify a heart beat rate.
+   * @param  heartBeatRate Array of heart beat rate values [1/min]
+   * @param  numOfValues Number of heartBeatRate array elements
+   */
+  virtual void notifyHeartBeatRate(unsigned int* heartBeatRate, unsigned char numOfValues) = 0;
+  
+  /**
+   * Notify a heart beat rate.
+   * @param  heartBeatRate Heart beat rate value [1/min]
    */
   virtual void notifyHeartBeatRate(unsigned int heartBeatRate) = 0;
 
@@ -68,15 +83,33 @@ public:
   void attachAdapter(PolarPulseAdapter* adapter);
 
   /**
+   * Retreive pointer to this component's debug topic node object.
+   * @return dbgTopic Pointer to this component's debug topic node object.
+   */
+  DbgCli_Topic* dbgTopic();
+
+  /**
+   * Retreive pointer to this component's debug pulse generator topic object.
+   * @return dbgPulseGenCmd Pointer to this component's debug pulse generator topic object.
+   */
+  DbgCli_Command_PulseGen* dbgPulseGenCmd();
+
+  /**
    * Retrieve current pulse status.
    * @return Pulse status: active (true) or inactive (false).
    */
   bool isPulseActive();
 
   /**
-   * Count one Pulse.
+   *
    */
-  void countPulse();
+  bool isPulseDetectedExternally();
+
+  /**
+   * Count one or add multiple Pulses.
+   * @param count Counts to be added if not 0, else increment b one count (default).
+   */
+  void countPulse(unsigned int count = 0);
 
   /**
    * Report Interval is over, extrapolate the heart beat rate per minute.
@@ -113,14 +146,21 @@ private:
   Timer* m_pollingTimer;
   Timer* m_reportTimer;
   PolarPulseAdapter* m_adapter;
-  DbgCli_Command* m_dbgPulseSimCmd;
+  DbgCli_Topic* m_dbgTopic;
+  DbgCli_Command_PulseSim* m_dbgPulseSimCmd;
+  DbgCli_Command_PulseGen* m_dbgPulseGenCmd;
   bool m_isPulsePinNegativeLogic;
   unsigned int m_count;
-  unsigned int m_heartBeatRate;
+  unsigned int* m_heartBeatRate;
   int m_pulsePin;
   int m_indicatorPin;
   static const unsigned int s_defaultPulsePollTimeMillis;
+  static const unsigned int s_defaultExternalPulsePollTimeMillis;
   static const unsigned int s_defaultReportIntervalMillis;
+  static const unsigned int s_defaultReportOveralBufferTimeMillis;
+  static const unsigned int s_oneMinuteMillis;
+  const unsigned char m_cMaxReportStores;
+  unsigned char m_reportPeriodCount;
 
 private:  // forbidden functions
   PolarPulse(const PolarPulse& src);              // copy constructor

@@ -12,7 +12,7 @@
 #include <PolarPulse.h>
 
 DbgCli_Command_PulseSim::DbgCli_Command_PulseSim(PolarPulse* polarPulse)
-: DbgCli_Command(new DbgCli_Topic(DbgCli_Node::RootNode(), "pulse", "Pulse sensor"), "sim", "Simulate one Heart Beat pulse.")
+: DbgCli_Command(polarPulse->dbgTopic(), "sim", "Simulate one Heart Beat pulse.")
 , m_polarPulse(polarPulse)
 , m_trPort(new DbgTrace_Port("psim", DbgTrace_Level::info))
 { }
@@ -25,6 +25,7 @@ void DbgCli_Command_PulseSim::execute(unsigned int argc, const char** args, unsi
   if (0 != m_polarPulse)
   {
     m_polarPulse->countPulse();
-    TR_PRINT_STR(m_trPort, DbgTrace_Level::info, "Heart beat simulated.")
+    Serial.println("Heart beat simulated.");
+//    TR_PRINT_STR(m_trPort, DbgTrace_Level::info, "Heart beat simulated.")
   }
 }

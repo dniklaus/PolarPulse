@@ -24,7 +24,7 @@ private:
   DbgTrace_Port* m_trPort;
 private:  // forbidden functions
   DbgCli_Command_PulseSim();                                                // default constructor
-  DbgCli_Command_PulseSim(const DbgCli_Command_PulseSim& src) ;              // copy constructor
+  DbgCli_Command_PulseSim(const DbgCli_Command_PulseSim& src) ;             // copy constructor
   DbgCli_Command_PulseSim& operator = (const DbgCli_Command_PulseSim& src); // assignment operator
 };
 
