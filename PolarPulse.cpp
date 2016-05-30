@@ -44,9 +44,10 @@ public:
       if (m_pulseSensor->isPulseDetectedExternally())
       {
         unsigned int count = m_pulseSensor->adapter()->getCount();
-        m_pulseSensor->countPulse(count);
-//        Serial.print("PollingTimerAdapter, isPulseDetectedExternally, getCount(): ");
-//        Serial.println(count);
+        if (0 != count)
+        {
+          m_pulseSensor->countPulse(count);
+        }
       }
       else
       {
