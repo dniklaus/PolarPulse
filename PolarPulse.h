@@ -107,7 +107,7 @@ public:
 
   /**
    * Count one or add multiple Pulses.
-   * @param count Counts to be added if not 0, else increment b one count (default).
+   * @param count Counts to be added if not 0, else increment by one count (default).
    */
   void countPulse(unsigned int count = 0);
 
@@ -141,6 +141,8 @@ public:
    * Constant for constructor's indicatorPin parameter (@see PolarPulse()), to create a pulse sensor object w/o any indicator output connected to a pin.
    */
   static const int IND_NC;
+
+  static const unsigned char N_MEAS;
 
 private:
   Timer* m_pollingTimer;
