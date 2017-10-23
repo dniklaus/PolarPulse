@@ -21,7 +21,7 @@ public:
   virtual ~DbgCli_Command_PulseGen();
   void execute(unsigned int argc, const char** args, unsigned int idxToFirstArgToHandle);
   void timeExpired();
-  bool isRunning();
+  bool hasToBeRunning();
 private:
   void incrementTime();
   void decrementTime();
@@ -31,7 +31,8 @@ private:
   PolarPulse* m_polarPulse;
   DbgTrace_Port* m_trPort;
   Timer* m_randomIntervalTimer;
-  bool m_isRunning;
+  bool m_hasToBeRunning;
+  bool m_isIntervalIncreasing;
   unsigned int m_currentTimeMillis;
   unsigned int m_newTimeMillis;
 private:  // forbidden functions

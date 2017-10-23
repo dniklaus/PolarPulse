@@ -9,9 +9,9 @@
 #include <Arduino.h>
 
 #include "PolarPulse.h"
-//#include <DbgCliTopic.h>
-//#include <DbgCliCommandPulseSim.h>
-//#include <DbgCliCommandPulseGen.h>
+#include <DbgCliTopic.h>
+#include <DbgCliCommandPulseSim.h>
+#include <DbgCliCommandPulseGen.h>
 
 const bool PolarPulse::IS_POS_LOGIC = false;
 const bool PolarPulse::IS_NEG_LOGIC = true;
@@ -94,10 +94,9 @@ PolarPulse::PolarPulse(int pulsePin, int indicatorPin, bool isPulsePinNegativeLo
 : m_pollingTimer(0)
 , m_reportTimer(new Timer(new ReportTimerAdapter(this), Timer::IS_RECURRING, s_defaultReportIntervalMillis))
 , m_adapter(adapter)
-//, m_dbgTopic(new DbgCli_Topic(DbgCli_Node::RootNode(), "pulse", "Pulse sensor component"))
-//, m_dbgPulseSimCmd(new DbgCli_Command_PulseSim(this))
-//, m_dbgPulseGenCmd(new DbgCli_Command_PulseGen(this))
-//, m_dbgPulseGenCmd(0)
+, m_dbgTopic(new DbgCli_Topic(DbgCli_Node::RootNode(), "pulse", "Pulse sensor component"))
+, m_dbgPulseSimCmd(new DbgCli_Command_PulseSim(this))
+, m_dbgPulseGenCmd(new DbgCli_Command_PulseGen(this))
 , m_isPulsePinNegativeLogic(isPulsePinNegativeLogic)
 , m_count(false)
 , m_heartBeatRate(0)
