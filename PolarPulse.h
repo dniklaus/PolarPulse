@@ -9,6 +9,7 @@
 #define COMP_POLARPULSE_POLARPULSE_H_
 
 class Timer;
+class DbgTrace_Port;
 class DbgCli_Topic;
 class DbgCli_Command_PulseSim;
 class DbgCli_Command_PulseGen;
@@ -148,6 +149,7 @@ private:
   Timer* m_pollingTimer;
   Timer* m_reportTimer;
   PolarPulseAdapter* m_adapter;
+  DbgTrace_Port* m_trPort;
   DbgCli_Topic* m_dbgTopic;
   DbgCli_Command_PulseSim* m_dbgPulseSimCmd;
   DbgCli_Command_PulseGen* m_dbgPulseGenCmd;

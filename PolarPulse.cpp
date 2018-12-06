@@ -9,6 +9,8 @@
 #include <Arduino.h>
 
 #include "PolarPulse.h"
+#include <DbgTracePort.h>
+#include <DbgTraceLevel.h>
 #include <DbgCliTopic.h>
 #include <DbgCliCommandPulseSim.h>
 #include <DbgCliCommandPulseGen.h>
@@ -59,6 +61,7 @@ public:
           m_pulseSensor->setIndicator(currentIsPulseActive);
           if (currentIsPulseActive /*&& (0 !m_pulseSensor->dbgPulseGenCmd()) && !m_pulseSensor->dbgPulseGenCmd()->isRunning()*/)
           {
+
             Serial.println("PolarPulse count!");
             m_pulseSensor->countPulse();
           }
@@ -94,6 +97,7 @@ PolarPulse::PolarPulse(int pulsePin, int indicatorPin, bool isPulsePinNegativeLo
 : m_pollingTimer(0)
 , m_reportTimer(new Timer(new ReportTimerAdapter(this), Timer::IS_RECURRING, s_defaultReportIntervalMillis))
 , m_adapter(adapter)
+, m_trPort(new DbgTrace_Port("plrpls", DbgTrace_Level::info))
 , m_dbgTopic(new DbgCli_Topic(DbgCli_Node::RootNode(), "pulse", "Pulse sensor component"))
 , m_dbgPulseSimCmd(new DbgCli_Command_PulseSim(this))
 , m_dbgPulseGenCmd(new DbgCli_Command_PulseGen(this))
@@ -108,7 +112,7 @@ PolarPulse::PolarPulse(int pulsePin, int indicatorPin, bool isPulsePinNegativeLo
   if (isPulseDetectedExternally())
   {
     // pulse events detected externally
-    Serial.println("PolarPulse: detected externally");
+    TR_PRINT_STR(m_trPort, DbgTrace_Level::debug, "PolarPulse: detected externally (outside of this component)\n");
     m_pollingTimer = new Timer(new PollingTimerAdapter(this), Timer::IS_RECURRING, s_defaultExternalPulsePollTimeMillis);
   }
   else

@@ -26,7 +26,6 @@ private:
   void incrementTime();
   void decrementTime();
   void startTimer();
-  bool isTimerRunning();
 private:
   PolarPulse* m_polarPulse;
   DbgTrace_Port* m_trPort;
